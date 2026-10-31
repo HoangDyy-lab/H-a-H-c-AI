@@ -1,0 +1,61 @@
+import os
+import streamlit as st
+import google.generativeai as genai
+
+# Cấu hình giao diện trang web
+st.set_page_config(page_title="ChemBuddy - Trợ lý Hóa học AI", page_icon="🧪", layout="centered")
+
+st.title("🧪 ChemBuddy - Trợ lý Hóa học AI")
+st.write("Chào bạn! Mình là trợ lý AI chuyên môn Hóa học. Hãy hỏi mình bất kỳ câu hỏi nào về lý thuyết, bài tập, hoặc hiện tượng hóa học nhé!")
+
+# Nhập API Key của Google Gemini
+api_key = st.text_input("Nhập Google Gemini API Key của bạn:", type="password")
+
+if api_key:
+    genai.configure(api_key=api_key)
+    
+    # Thiết lập System Instruction để định hình tính cách cho AI Agent
+    system_instruction = (
+        "Bạn là ChemBuddy - một trợ lý AI chuyên gia về Hóa học dành cho học sinh. "
+        "Nhiệm vụ của bạn là giúp học sinh hiểu sâu bản chất hóa học, không chỉ đưa ra đáp án cuối cùng. "
+        "Khi học sinh hỏi bài tập, hãy gợi ý phương pháp giải thay vì giải sẵn hoàn toàn. "
+        "Luôn giữ thái độ khích lệ, thân thiện và sử dụng ngôn ngữ chuẩn xác."
+    )
+    
+    generation_config = {"temperature": 0.7}
+    model = genai.GenerativeModel(
+        model_name="gemini-1.5-flash",
+        generation_config=generation_config,
+        system_instruction=system_instruction
+    )
+    
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    if prompt := st.chat_input("Nhập câu hỏi hóa học của bạn ở đây..."):
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
+
+        chat_history = [
+            {"role": m["role"], "parts": [m["content"]]} 
+            for m in st.session_state.messages
+        ]
+        
+        try:
+            chat = model.start_chat(history=chat_history[:-1])
+            response = chat.send_message(prompt)
+            bot_reply = response.text
+
+            with st.chat_message("assistant"):
+                st.markdown(bot_reply)
+            st.session_state.messages.append({"role": "assistant", "content": bot_reply})
+            
+        except Exception as e:
+            st.error(f"Đã có lỗi xảy ra: {e}")
+else:
+    st.info("💡 Vui lòng nhập API Key ở trên để bắt đầu trò chuyện với ChemBuddy.")
